@@ -1,0 +1,5 @@
+{
+    "name": "mrmilu/mrmilu_readable_url",
+    "description": "Set readable urls in pages with filters",
+    "type": "drupal-mrmilu-module"
+}

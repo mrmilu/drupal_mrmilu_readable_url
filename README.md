@@ -1,2 +1,2 @@
-# drupal_mrmilu_readable_url
+# Mr. Milú readable url
 Set readable urls in pages with filters

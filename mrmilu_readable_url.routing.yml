@@ -1,0 +1,9 @@
+mrmilu_readable_url.readable_url:
+  path: '/mrmilu/readable-url'
+  defaults:
+    _form: '\Drupal\mrmilu_readable_url\Form\ReadableUrlForm'
+    _title: 'Readable url'
+  requirements:
+    _permission: 'access administration pages'
+  options:
+    _admin_route: TRUE

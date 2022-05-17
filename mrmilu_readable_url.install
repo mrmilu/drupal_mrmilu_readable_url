@@ -1,0 +1,19 @@
+<?php
+
+use Drupal\system\Entity\Menu;
+
+/**
+ * Add custom link to toolbar menu
+ */
+function mrmilu_readable_url_install() {
+  // Check if menu exists from another module, otherwise creates new one and set Readable url link.
+  // Not hook_uninstall to avoid delete active elements.
+  $menu = Menu::load('admin_mrmilu');
+  if (!$menu) {
+    $menu = Menu::create([
+      'id' => 'admin_mrmilu',
+      'label' => 'Mr. Milú admin menu',
+    ]);
+    $menu->save();
+  }
+}

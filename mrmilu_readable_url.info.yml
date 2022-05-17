@@ -1,0 +1,11 @@
+name: Mr. Milú Readable url
+description: Set readable urls in pages with filters
+package: Mr. Milú
+type: module
+core_version_requirement: ^9
+version: 1.0.0
+
+dependencies:
+  - drupal:toolbar
+  - node
+  - menu_link_content

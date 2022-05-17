@@ -1,0 +1,13 @@
+langcode: en
+status: true
+dependencies:
+  module:
+    - mrmilu_readable_url
+  enforced:
+    module:
+      - mrmilu_readable_url
+id: toolbar_mrmilu
+label: Mr. Milú
+weight: null
+menu: admin_mrmilu
+rewrite_label: false

@@ -8,4 +8,3 @@ version: 1.0.0
 dependencies:
   - drupal:toolbar
   - node
-  - menu_link_content

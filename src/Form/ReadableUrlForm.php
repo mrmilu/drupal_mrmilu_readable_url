@@ -30,7 +30,8 @@ class ReadableUrlForm extends FormBase {
     }
 
     $nodeValues = \Drupal::state()->get('mrmilu_readable_url_node');
-    $filterValues = \Drupal::state()->get('mrmilu_readable_url_filter');
+    $filterKeys = \Drupal::state()->get('mrmilu_readable_url_filter_key');
+    $filterValues = \Drupal::state()->get('mrmilu_readable_url_filter_value');
     for ($i = 0; $i < $numUrls; $i++) {
       $form['container']['url'][$i] = [
         '#type' => 'details',
@@ -40,12 +41,13 @@ class ReadableUrlForm extends FormBase {
         '#suffix' => '</div>',
       ];
 
+      $currentNid = $nodeValues[$i];
       $form['container']['url'][$i]['mrmilu_readable_url_node'] = [
         '#title' => t('Node'),
         '#type' => 'entity_autocomplete',
         '#target_type' => 'node',
         '#selection_handler' => 'default',
-        '#default_value' => isset($nodeValues[$i]) ? Node::load($nodeValues[$i]) : NULL
+        '#default_value' => isset($currentNid) ? Node::load($currentNid) : NULL
       ];
 
       $numFilters = $form_state->get(['num_filters', $i]);
@@ -56,11 +58,21 @@ class ReadableUrlForm extends FormBase {
       }
 
       for ($j = 0; $j < $numFilters; $j++) {
-        $form['container']['url'][$i]['mrmilu_readable_url_filter'][$j] = [
+        $form['container']['url'][$i]['mrmilu_readable_url_filter_container'][$j] = [
+          '#type' => 'details',
+          '#title' => $this->t('Filter') . ' ' . $j,
+          '#open' => TRUE,
+        ];
+        $form['container']['url'][$i]['mrmilu_readable_url_filter_container'][$j]['mrmilu_readable_url_filter_key'] = [
+          '#type' => 'textfield',
+          '#title' => t('Key'),
+          '#default_value' => $filterKeys[$currentNid][$j] ?? NULL,
+        ];
+        $form['container']['url'][$i]['mrmilu_readable_url_filter_container'][$j]['mrmilu_readable_url_filter_value'] = [
           '#type' => 'textarea',
-          '#title' => t('Filter') . ' ' . $j,
+          '#title' => t('Value'),
           '#description' => t('Field key|Field value'),
-          '#default_value' => $filterValues[$i][$j] ?? NULL,
+          '#default_value' => $filterValues[$currentNid][$j] ?? NULL,
         ];
       }
 
@@ -135,20 +147,24 @@ class ReadableUrlForm extends FormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $values = $form_state->getValue(['container', 'url']);
     $nodeValues = [];
-    $filterValues = [];
+    $filterKeys = $filterValues = [];
     $filterIndex = [];
 
     foreach ($values as $i => $value) {
-      $nodeValues[$i] = $value['mrmilu_readable_url_node'];
-      $filterValues[$i] = [];
-      foreach ($value['mrmilu_readable_url_filter'] as $j => $filter) {
-        $filterValues[$i][$j] = $filter;
+      $currentNid = $value['mrmilu_readable_url_node'];
+      $nodeValues[$i] = $currentNid;
+      $filterKeys[$currentNid] = $filterValues[$currentNid] = [];
+      foreach ($value['mrmilu_readable_url_filter_container'] as $j => $containerValues) {
+        $filterKeys[$currentNid][$j] = $containerValues['mrmilu_readable_url_filter_key'];
+        $filterValues[$currentNid][$j] = $containerValues['mrmilu_readable_url_filter_value'];
       }
       $filterIndex[$i] = $j + 1;
     }
 
+    // Save values for filtered urls
     \Drupal::state()->set('mrmilu_readable_url_node', $nodeValues);
-    \Drupal::state()->set('mrmilu_readable_url_filter', $filterValues);
+    \Drupal::state()->set('mrmilu_readable_url_filter_key', $filterKeys);
+    \Drupal::state()->set('mrmilu_readable_url_filter_value', $filterValues);
 
     // Auxiliar values to init form with indexes
     $numUrls = $form_state->get('num_urls');

@@ -1,0 +1,14 @@
+services:
+  mrmilu_readable_url.path_processor:
+    class: Drupal\mrmilu_readable_url\PathProcessor\PathProcessorUnlimited
+    tags:
+      - { name: path_processor_inbound, priority: 100 }
+      - { name: path_processor_outbound, priority: 400 }
+
+    arguments: ['@path_alias.manager']
+
+  mrmilu_readable_url.route_normalizer_unlimited_request_subscriber:
+    class: Drupal\mrmilu_readable_url\EventSubscriber\RouteNormalizerUnlimitedRequestSubscriber
+    arguments: ['@url_generator', '@path.matcher', '@config.factory', '@redirect.checker', '@language_manager']
+    tags:
+      - { name: event_subscriber }

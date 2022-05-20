@@ -30,6 +30,7 @@ class ReadableUrlForm extends FormBase {
     }
 
     $nodeValues = \Drupal::state()->get('mrmilu_readable_url_node');
+    $searchText = \Drupal::state()->get('mrmilu_readable_url_search_text');
     $filterKeys = \Drupal::state()->get('mrmilu_readable_url_filter_key');
     $filterValues = \Drupal::state()->get('mrmilu_readable_url_filter_value');
     for ($i = 0; $i < $numUrls; $i++) {
@@ -40,102 +41,22 @@ class ReadableUrlForm extends FormBase {
         '#prefix' => '<div id="filters-fieldset-wrapper-' . $i . '">',
         '#suffix' => '</div>',
       ];
-
-      $currentNid = $nodeValues[$i];
-      $form['container']['url'][$i]['mrmilu_readable_url_node'] = [
-        '#title' => t('Node'),
-        '#type' => 'entity_autocomplete',
-        '#target_type' => 'node',
-        '#selection_handler' => 'default',
-        '#default_value' => isset($currentNid) ? Node::load($currentNid) : NULL
-      ];
-
-      $numFilters = $form_state->get(['num_filters', $i]);
-      if ($numFilters === NULL) {
-        $stateFilters = \Drupal::state()->get('mrmilu_readable_url_num_filters');
-        $numFilters = $stateFilters[$i] ?? 1;
-        $form_state->set(['num_filters', $i], $numFilters);
-      }
-
-      for ($j = 0; $j < $numFilters; $j++) {
-        $form['container']['url'][$i]['mrmilu_readable_url_filter_container'][$j] = [
-          '#type' => 'details',
-          '#title' => $this->t('Filter') . ' ' . $j,
-          '#open' => TRUE,
-        ];
-        $form['container']['url'][$i]['mrmilu_readable_url_filter_container'][$j]['mrmilu_readable_url_filter_key'] = [
-          '#type' => 'textfield',
-          '#title' => t('Key'),
-          '#default_value' => $filterKeys[$currentNid][$j] ?? NULL,
-        ];
-        $form['container']['url'][$i]['mrmilu_readable_url_filter_container'][$j]['mrmilu_readable_url_filter_value'] = [
-          '#type' => 'textarea',
-          '#title' => t('Value'),
-          '#description' => t('Field key|Field value'),
-          '#default_value' => $filterValues[$currentNid][$j] ?? NULL,
-        ];
-      }
+      $this->containerUrlOptions($form, $form_state, $nodeValues, $searchText, $filterKeys, $filterValues, $i);
 
       // Filters actions
-      $form['container']['url'][$i]['actions'] = [
-        '#type' => 'actions',
-      ];
-      $form['container']['url'][$i]['actions']['add_filter'] = [
-        '#type' => 'submit',
-        '#value' => $this->t('Add filter'),
-        '#name' => 'add_filter_' . $i,
-        '#submit' => ['::addOneFilters'],
-        '#attributes' => [
-          'current_url' => $i,
-        ],
-        '#ajax' => [
-          'callback' => '::addmoreFiltersCallback',
-          'wrapper' => 'filters-fieldset-wrapper-' . $i,
-        ],
-      ];
-      if ($numFilters > 1) {
-        $form['container']['url'][$i]['actions']['remove_filter'] = [
-          '#type' => 'submit',
-          '#value' => $this->t('Remove filter'),
-          '#name' => 'remove_filter_' . $i,
-          '#submit' => ['::removeFiltersCallback'],
-          '#attributes' => [
-            'current_url' => $i,
-          ],
-          '#ajax' => [
-            'callback' => '::addmoreFiltersCallback',
-            'wrapper' => 'filters-fieldset-wrapper-' . $i,
-          ],
-        ];
-      }
+      $form['container']['url'][$i]['actions'] = $this->buttonActions($numUrls, 'add_filter', 'remove_filter',
+        '::addOneFilters', '::addmoreFiltersCallback', '::removeFiltersCallback', 'filters-fieldset-wrapper-' . $i);
+      // Add attributes to get desired filter in url fieldset
+      $form['container']['url'][$i]['actions']['add_filter']['#name'] = 'add_filter_' . $i;
+      $form['container']['url'][$i]['actions']['add_filter']['#attributes']['current_url'] = $i;
+      $form['container']['url'][$i]['actions']['remove_filter']['#name'] = 'remove_filter_' . $i;
+      $form['container']['url'][$i]['actions']['remove_filter']['#attributes']['current_url'] = $i;
     }
 
     // Url actions
-    $form['container']['actions'] = [
-      '#type' => 'actions',
-    ];
-    $form['container']['actions']['add_url'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Add url'),
-      '#submit' => ['::addOneUrls'],
-      '#ajax' => [
-        'callback' => '::addmoreUrlsCallback',
-        'wrapper' => 'urls-fieldset-wrapper',
-      ],
-    ];
-    if ($numUrls > 1) {
-      $form['container']['actions']['remove_url'] = [
-        '#type' => 'submit',
-        '#value' => $this->t('Remove url'),
-        '#submit' => ['::removeUrlsCallback'],
-        '#ajax' => [
-          'callback' => '::addmoreUrlsCallback',
-          'wrapper' => 'urls-fieldset-wrapper',
-        ],
-      ];
-    }
+    $form['container']['actions'] = $this->buttonActions($numUrls, 'add_url', 'remove_url',
+      '::addOneUrls', '::addmoreUrlsCallback', '::removeUrlsCallback', 'urls-fieldset-wrapper');
 
-    // Filters actions
     $form['actions']['submit'] = [
       '#type' => 'submit',
       '#value' => $this->t('Submit'),
@@ -144,15 +65,87 @@ class ReadableUrlForm extends FormBase {
     return $form;
   }
 
+  private function containerUrlOptions(&$form, FormStateInterface $formState, $nodeValues, $searchText, $filterKeys, $filterValues, $i) {
+    $currentNid = $nodeValues[$i] ?? NULL;
+    $form['container']['url'][$i]['mrmilu_readable_url_node'] = [
+      '#title' => t('Node'),
+      '#type' => 'entity_autocomplete',
+      '#target_type' => 'node',
+      '#selection_handler' => 'default',
+      '#default_value' => isset($currentNid) ? Node::load($currentNid) : NULL
+    ];
+    $form['container']['url'][$i]['mrmilu_readable_url_search_text'] = [
+      '#title' => t('Search by text'),
+      '#type' => 'checkbox',
+      '#default_value' => $searchText[$currentNid] ?? FALSE,
+    ];
+
+    $numFilters = $formState->get(['num_filters', $i]);
+    if ($numFilters === NULL) {
+      $stateFilters = \Drupal::state()->get('mrmilu_readable_url_num_filters');
+      $numFilters = $stateFilters[$i] ?? 1;
+      $formState->set(['num_filters', $i], $numFilters);
+    }
+
+    for ($j = 0; $j < $numFilters; $j++) {
+      $form['container']['url'][$i]['mrmilu_readable_url_filter_container'][$j] = [
+        '#type' => 'details',
+        '#title' => $this->t('Filter') . ' ' . $j,
+        '#open' => TRUE,
+      ];
+      $form['container']['url'][$i]['mrmilu_readable_url_filter_container'][$j]['mrmilu_readable_url_filter_key'] = [
+        '#type' => 'textfield',
+        '#title' => t('Key'),
+        '#default_value' => $filterKeys[$currentNid][$j] ?? NULL,
+      ];
+      $form['container']['url'][$i]['mrmilu_readable_url_filter_container'][$j]['mrmilu_readable_url_filter_value'] = [
+        '#type' => 'textarea',
+        '#title' => t('Value'),
+        '#description' => t('Field key|Field value'),
+        '#default_value' => $filterValues[$currentNid][$j] ?? NULL,
+      ];
+    }
+  }
+
+  private function buttonActions($num, $addActionKey, $removeActionKey, $addSubmit, $addCallback, $removeCallback, $wrapper) {
+    $form = [
+      '#type' => 'actions',
+    ];
+    $form[$addActionKey] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Add'),
+      '#submit' => [$addSubmit],
+      '#ajax' => [
+        'callback' => $addCallback,
+        'wrapper' => $wrapper,
+      ],
+    ];
+    if ($num > 1) {
+      $form[$removeActionKey] = [
+        '#type' => 'submit',
+        '#value' => $this->t('Remove'),
+        '#submit' => [$removeCallback],
+        '#ajax' => [
+          'callback' => $addCallback,
+          'wrapper' => $wrapper,
+        ],
+      ];
+    }
+
+    return $form;
+  }
+
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $values = $form_state->getValue(['container', 'url']);
-    $nodeValues = [];
+    $nodeValues = $searchByText = [];
     $filterKeys = $filterValues = [];
     $filterIndex = [];
 
     foreach ($values as $i => $value) {
       $currentNid = $value['mrmilu_readable_url_node'];
       $nodeValues[$i] = $currentNid;
+
+      $searchByText[$currentNid] = $value['mrmilu_readable_url_search_text'];
       $filterKeys[$currentNid] = $filterValues[$currentNid] = [];
       foreach ($value['mrmilu_readable_url_filter_container'] as $j => $containerValues) {
         $filterKeys[$currentNid][$j] = $containerValues['mrmilu_readable_url_filter_key'];
@@ -163,6 +156,7 @@ class ReadableUrlForm extends FormBase {
 
     // Save values for filtered urls
     \Drupal::state()->set('mrmilu_readable_url_node', $nodeValues);
+    \Drupal::state()->set('mrmilu_readable_url_search_text', $searchByText);
     \Drupal::state()->set('mrmilu_readable_url_filter_key', $filterKeys);
     \Drupal::state()->set('mrmilu_readable_url_filter_value', $filterValues);
 

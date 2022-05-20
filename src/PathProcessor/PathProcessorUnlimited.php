@@ -15,19 +15,21 @@ class PathProcessorUnlimited implements InboundPathProcessorInterface, OutboundP
   private $nids;
   private $filterValues;
   private $filterKeys;
+  private $searchText;
 
   public function __construct(AliasManagerInterface $aliasManager) {
     $this->aliasManager = $aliasManager;
     $this->nids = UrlsHelper::getNids();
     $this->filterValues = \Drupal::state()->get('mrmilu_readable_url_filter_value');
     $this->filterKeys = \Drupal::state()->get('mrmilu_readable_url_filter_key');
+    $this->searchText = \Drupal::state()->get('mrmilu_readable_url_search_text');
   }
 
   private function testFancyURL($basePath) {
     $pathsAndQuery = $this->getPathsAndQueryKeys();
     $pathsWithFancyUrls = array_keys($pathsAndQuery);
     foreach ($pathsWithFancyUrls as $keyValue) {
-      if (strpos($basePath, $keyValue) === 0) {
+      if ($basePath == $keyValue) {
         return TRUE;
       }
     }
@@ -35,7 +37,8 @@ class PathProcessorUnlimited implements InboundPathProcessorInterface, OutboundP
   }
 
   public function processInbound($path, Request $request) {
-    $hasFancyUrl = $this->testFancyURL($path);
+    $parts = explode('/', trim($path, '/'));
+    $hasFancyUrl = $this->testFancyURL('/' . $parts[0]);
 
     if ($hasFancyUrl) {
       $nid = $this->getPageNid($path);
@@ -55,6 +58,11 @@ class PathProcessorUnlimited implements InboundPathProcessorInterface, OutboundP
           }
         }
 
+        // Search by text. If exists, is last option after selects
+        if ($this->searchText[$nid] && isset($parts[$key + 1])) {
+          $request->query->set('text', $parts[$key + 1]);
+        }
+
         return '/node/' . $nid;
       }
     }
@@ -66,7 +74,8 @@ class PathProcessorUnlimited implements InboundPathProcessorInterface, OutboundP
     $langCode = isset($options['language']) ? $options['language']->getId() : NULL;
     $pathAlias = $this->aliasManager->getAliasByPath($path, $langCode);
 
-    $hasFancyUrl = $this->testFancyURL($pathAlias);
+    $pathAliasArray = explode('/', trim($pathAlias, '/'));
+    $hasFancyUrl = $this->testFancyURL('/' . $pathAliasArray[0]);
 
     if ($hasFancyUrl && array_key_exists('query', $options)) {
       if (sizeof($options['query']) == 0) {
@@ -81,6 +90,15 @@ class PathProcessorUnlimited implements InboundPathProcessorInterface, OutboundP
           $keyResult = \Drupal::request()->query->has($filter) ? \Drupal::request()->query->get($filter) : 'all';
           $pathResult[] = $keyResult != 'all' ? $filterValues[$filter][$keyResult] : 'all';
           if ($keyResult != 'all') {
+            $allUrl = FALSE;
+          }
+        }
+
+        // Add text in url if exists
+        if ($this->searchText[$nid]) {
+          $text = \Drupal::request()->query->has('text') ? \Drupal::request()->query->get('text') : NULL;
+          if ($text) {
+            $pathResult[] = $text;
             $allUrl = FALSE;
           }
         }
